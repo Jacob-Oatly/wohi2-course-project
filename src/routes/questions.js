@@ -8,6 +8,12 @@ router.get("/", (req, res) => {
 });
 */
 
+const authenticate = require("../middleware/auth");
+const isOwner = require("../middleware/isOwner");
+
+
+router.use(authenticate);
+
 router.get("/", async (req, res) => {
     const {keyword} = req.query;
 
@@ -42,7 +48,7 @@ router.get("/", async (req, res) => {
     */
 });
 
-router.get("/:questionId", async (req, res) => {
+router.get("/:questionId", isOwner, async (req, res) => {
   const questionId = Number(req.params.questionId);
   const post = await prisma.post.findUnique({
     where: { id: questionId },
@@ -68,7 +74,7 @@ router.get("/:questionId", async (req, res) => {
     res.json(question);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", isOwner, async (req, res) => {
   const { questionTitle, answer, keywords } = req.body;
 
     if (!questionTitle || !answer) {
@@ -82,6 +88,7 @@ router.post("/", async (req, res) => {
       data: {
         questionTitle: question.questionTitle,
         answer: question.answer,
+        userId: req.user.userId,
         keywords: {
           connectOrCreate: question.keywords.map((kw) => ({
             where: { name: kw },
@@ -117,7 +124,7 @@ router.post("/", async (req, res) => {
 });
 
 
-router.put("/:questionId", async (req, res) => {
+router.put("/:questionId", isOwner, async (req, res) => {
 
   const questionId = Number(req.params.questionId);
   const { questionTitle, answer, keywords } = req.body;
@@ -146,32 +153,11 @@ router.put("/:questionId", async (req, res) => {
     include: { keywords: true },
   });
 
-
-    /*
-    const questionId = Number(req.params.questionId);
-    const {questionTitle, answer, keywords} = req.body;
-
-    const question = questions.find((q) => q.id === questionId);
-
-    if (!question) {
-        return res.status(404).json({ message: "question not found"});
-    }
-
-    if (!questionTitle || answer) {
-        return res.json({
-            message: "Question title and answer are required"
-        });
-    }
-
-    question.questionTitle = questionTitle;
-    question.answer = answer;
-    question.keywords = Array.isArray(keywords) ? keywords : [];
-    */
     res.json(question);
 });
 
 
-router.delete("/:questionId", async (req, res) => {
+router.delete("/:questionId", isOwner, async (req, res) => {
   const questionId = Number(req.params.postId);
 
   const question = await prisma.post.findUnique({
@@ -184,25 +170,11 @@ router.delete("/:questionId", async (req, res) => {
   }
 
   await prisma.question.delete({ where: { id: questionId } });
-    /*
-    const questionId = Number(req.params.questionId);
-
-    const questionIndex = questions.findIndex((q) => q.id === questionId);
-
-    if (questionIndex === -1) {
-        return res.status(404).json({message: "Question not found"});
-    }
-
-    const deletedQuestion = questions.splice(questionIndex, 1);
-
-    */
 
     res.json({
         message: "Question deleted successfully",
         question: deletedQuestion[0]
     });
 });
-
-
 
 module.exports = router;
